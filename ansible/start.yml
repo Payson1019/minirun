@@ -9,7 +9,23 @@
         state: directory
     - name: check the state status
       fail: msg="nodes are already started"
-      when: last_state['status']  == "started" and not(forced|default(false)|bool)
+      when: 
+        - last_state['status'] == "started"
+        - group_nodes_started
+        - not(forced|default(false)|bool)
+      vars:
+        ngroup: "{{ node_group | default('nodes') }}"
+        group_nodes_started: >-
+          {{
+            last_state['spawn_results'] 
+            | dict2items 
+            | selectattr('key', 'in', groups[ngroup]) 
+            | map(attribute='value') 
+            | map(attribute='status') 
+            | select('equalto', 0) 
+            | list 
+            | length == groups[ngroup] | length
+          }}
 
 - name: start the nodes
   hosts: "{{ ngroup }}"

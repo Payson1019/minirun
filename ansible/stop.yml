@@ -8,7 +8,7 @@
       fail: msg="nodes are not running"
       when: last_state['status']  != "started"
 
-- name: stop all nodes
+- name: stop all nodes in group
   hosts: "{{ ngroup }}"
   tasks:
     - import_tasks: helper/stop.yml
@@ -18,8 +18,44 @@
     ngroup: "{{ node_group | default('nodes') }}"
     testbed: "{{ (testbed_prefix, run_id, nid, '') | path_join }}"
 
-- hosts: localhost
+- name: Update spawn_results status to stopped in group
+  hosts: localhost
+  vars:
+    ngroup: "{{ node_group | default('nodes') }}"
   tasks:
     - set_fact:
-        cur_state: "{{ last_state | combine({'status': 'stopped'}) }}"
+        cur_state: >-
+          {{
+            last_state
+            | combine({'spawn_results': 
+              dict(last_state['spawn_results'] 
+              | dict2items 
+              | selectattr('key', 'in', groups[ngroup]) 
+              | map('combine', {'value': {'status': 'stopped'}}) 
+              | items2dict)
+              }, recursive=True)
+          }}
+
+- hosts: localhost
+  vars:
+    closed: >-
+        {{ 
+          cur_state['spawn_results'].values() 
+          | map(attribute='status') 
+          | select('equalto', 'stopped') 
+          | list 
+          | length == cur_state['spawn_results'] | length
+        }}
+  tasks:
+    - block:
+        - debug:
+            msg: "all nodes are closed"
+          tags: [print_action]
+        - set_fact:
+            cur_state: "{{ cur_state | combine({'status': 'stopped'}) }}"
+      when: closed
+    - debug:
+        msg: "some nodes are still running"
+      tags: [print_action]
+      when: not closed
 - import_playbook: helper/save_state.yml

@@ -1,2 +1,4 @@
 ---
-- command: kill {{ last_state['spawn_results'][inventory_hostname]['pid'] }}
+- name: stop the node if it is running
+  command: kill {{ last_state['spawn_results'][inventory_hostname]['pid'] }}
+  when: last_state['spawn_results'][inventory_hostname]['status'] != "stopped"

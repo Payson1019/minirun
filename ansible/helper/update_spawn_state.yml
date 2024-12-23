@@ -13,4 +13,4 @@
               | list
             }}
     - set_fact:
-        cur_state: "{{ cur_state | combine({'spawn_results':all_results}) }}"
+        cur_state: "{{ cur_state | combine({'spawn_results':all_results}, recursive=True) }}"
